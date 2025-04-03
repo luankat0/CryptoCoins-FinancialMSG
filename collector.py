@@ -1,6 +1,10 @@
-import yfinance as yf
+import os
+import smtplib
 import pandas as pd
+import yfinance as yf
+from dotenv import load_dotenv
 import matplotlib.pyplot as plt
+from email.mime.text import MIMEText
 
 tickers = ["BTC-USD", "ETH-USD", "USDT-USD"]
 
@@ -36,9 +40,10 @@ plt.legend()
 plt.grid()
 plt.show()
 
-# Volatidade
+# Retornos diários
 dados["Daily Return"] = dados["BTC-USD"].pct_change()
 
+dados["Volatility"] = dados["Daily Return"].rolling(window=7).std()
 # Plotando volatilidade
 plt.figure(figsize=(12,6))
 plt.plot(dados.index, dados["Volatility"], label="Volatibilidade BTC", color='purple')
@@ -50,3 +55,30 @@ plt.legend()
 plt.grid()
 plt.show()
 
+# Configuração do Email
+
+load_dotenv()
+
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+EMAIL_DEST = os.getenv("EMAIL_DEST")
+
+# Preço alvo
+ALERTA_BTC = 62500
+
+preco_atual = dados["BTC-USD"].iloc[-1]
+
+if preco_atual >= ALERTA_BTC:
+    msg = MIMEText(f"O preço do BTC atingiu {preco_atual:.2f} USD")
+    msg["Subject"] = "Alerta BTC"
+    msg["From"] = EMAIL_USER
+    msg["To"] = EMAIL_DEST
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(EMAIL_USER, EMAIL_PASS)
+        server.sendmail(EMAIL_USER, EMAIL_DEST, msg.as_string())
+    
+    print("Alerta enviado!")
+
+else:
+    print(f"BTC ainda não atingiu o preço-alvo ({preco_atual:.2f} USD)")
